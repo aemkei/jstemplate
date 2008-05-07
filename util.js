@@ -406,3 +406,39 @@ function domRemoveNode(node) {
 function domRemoveChild(node, child) {
   return node.removeChild(child);
 }
+
+/**
+ * Trim whitespace from begin and end of string.
+ *
+ * @see testStringTrim();
+ *
+ * @param {string} str  Input string.
+ * @return {string}  Trimmed string.
+ */
+function stringTrim(str) {
+  return stringTrimRight(stringTrimLeft(str));
+}
+
+/**
+ * Trim whitespace from beginning of string.
+ *
+ * @see testStringTrimLeft();
+ *
+ * @param {string} str  Input string.
+ * @return {string}  Trimmed string.
+ */
+function stringTrimLeft(str) {
+  return str.replace(/^\s+/, "");
+}
+
+/**
+ * Trim whitespace from end of string.
+ *
+ * @see testStringTrimRight();
+ *
+ * @param {string} str  Input string.
+ * @return {string}  Trimmed string.
+  */
+function stringTrimRight(str) {
+  return str.replace(/\s+$/, "");
+}
