@@ -71,6 +71,7 @@ var STRING_jsts = 'jsts';
 var CHAR_asterisk = '*';
 var CHAR_dollar = '$';
 var CHAR_period = '.';
+var CHAR_ampersand = '&';
 var STRING_div = 'div';
 var STRING_id = 'id';
 var STRING_asteriskzero = '*0';
@@ -154,7 +155,6 @@ JstProcessor.jstid_ = 0;
  */
 JstProcessor.jstcache_ = {};
 
-
 /**
  * The neutral cache entry. Used for all nodes that don't have any
  * jst attributes. We still set the jsid attribute on those nodes so
@@ -165,6 +165,37 @@ JstProcessor.jstcache_ = {};
  * expensive too.
  */
 JstProcessor.jstcache_[0] = {};
+
+
+/**
+ * Map from concatenated attribute string to jstid.
+ * The key is the concatenation of all jst atributes found on a node
+ * formatted as "name1=value1&name2=value2&...", in the order defined by
+ * JST_ATTRIBUTES. The value is the id of the jstcache_ entry that can
+ * be used for this node. This allows the reuse of cache entries in cases
+ * when a cached entry already exists for a given combination of attribute
+ * values. (For example when two different nodes in a template share the same
+ * JST attributes.)
+ * @type Object
+ */
+JstProcessor.jstcacheattributes_ = {};
+
+
+/**
+ * Map for storing temporary attribute values in prepareNode_() so they don't
+ * have to be retrieved twice. (IE6 perf)
+ * @type Object
+ */
+JstProcessor.attributeValues_ = {};
+
+
+/**
+ * A list for storing non-empty attributes found on a node in prepareNode_().
+ * The array is global since it can be reused - this way there is no need to
+ * construct a new array object for each invocation. (IE6 perf)
+ * @type Array
+ */
+JstProcessor.attributeList_ = [];
 
 
 /**
@@ -211,23 +242,61 @@ var JST_ATTRIBUTES = [
  * returns an object with no properties (the jscache_[0] entry).
  */
 JstProcessor.prepareNode_ = function(node) {
+  // If the node already has a cache property, return it.
   if (node[PROP_jstcache]) {
     return node[PROP_jstcache];
   }
 
-  // NOTE(mesch): We avoid gratuitous object creation here, and only
-  // create an instance if we set properties on it. (IE6 perf)
-  var jstcache = null;
+  // If it is not found, we always set the PROP_jstcache property on the node.
+  // Accessing the property is faster than executing getAttribute(). If we
+  // don't find the property on a node that was cloned in jstSelect_(), we
+  // will fall back to check for the attribute and set the property
+  // from cache.
 
+  // If the node has an attribute indexing a cache object, set it as a property
+  // and return it.
+  var jstid = domGetAttribute(node, ATT_jstcache);
+  if (jstid != null) {
+    return node[PROP_jstcache] = JstProcessor.jstcache_[jstid];
+  }
+
+  var attributeValues = JstProcessor.attributeValues_;
+  var attributeList = JstProcessor.attributeList_;
+  attributeList.length = 0;
+
+  // Look for interesting attributes.
+  for (var i = 0, I = jsLength(JST_ATTRIBUTES); i < I; ++i) {
+    var name = JST_ATTRIBUTES[i][0];
+    var value = domGetAttribute(node, name);
+    attributeValues[name] = value;
+    if (value != null) {
+      attributeList.push(name + "=" + value);
+    }
+  }
+
+  // If none found, mark this node to prevent further inspection, and return
+  // an empty cache object.
+  if (attributeList.length == 0) {
+    domSetAttribute(node, ATT_jstcache, STRING_zero);
+    return node[PROP_jstcache] = JstProcessor.jstcache_[0];
+  }
+
+  // If we already have a cache object corresponding to these attributes,
+  // annotate the node with it, and return it.
+  var attstring = attributeList.join(CHAR_ampersand);
+  if (jstid = JstProcessor.jstcacheattributes_[attstring]) {
+    domSetAttribute(node, ATT_jstcache, jstid);
+    return node[PROP_jstcache] = JstProcessor.jstcache_[jstid];
+  }
+
+  // Otherwise, build a new cache object.
+  var jstcache = {};
   for (var i = 0, I = jsLength(JST_ATTRIBUTES); i < I; ++i) {
     var att = JST_ATTRIBUTES[i];
     var name = att[0];
     var parse = att[1];
-    var value = domGetAttribute(node, name);
+    var value = attributeValues[name];
     if (value != null) {
-      if (!jstcache) {
-        jstcache = {};
-      }
       jstcache[name] = parse(value);
       if (MAPS_DEBUG) {
         jstcache.jstAttributeValues = jstcache.jstAttributeValues || {};
@@ -236,22 +305,12 @@ JstProcessor.prepareNode_ = function(node) {
     }
   }
 
-  if (jstcache) {
-    var jstid = STRING_empty + ++JstProcessor.jstid_;
-    domSetAttribute(node, ATT_jstcache, jstid);
-    JstProcessor.jstcache_[jstid] = jstcache;
-  } else {
-    domSetAttribute(node, ATT_jstcache, STRING_zero);
-    jstcache = JstProcessor.jstcache_[0];
-  }
+  jstid = STRING_empty + ++JstProcessor.jstid_;
+  domSetAttribute(node, ATT_jstcache, jstid);
+  JstProcessor.jstcache_[jstid] = jstcache;
+  JstProcessor.jstcacheattributes_[attstring] = jstid;
 
-  // We always set the PROP_jstcache property on the node. Accessing
-  // the property is faster than executing getAttribute(). If we don't
-  // find the property on a node that was cloned in jstSelect_(), we
-  // will fall back to check for the attribute and set the property
-  // from cache.
-  assert(jstcache);
-  return node[PROP_jstcache] = /** @type Object */(jstcache);
+  return node[PROP_jstcache] = jstcache;
 };
 
 
@@ -657,7 +716,7 @@ JstProcessor.prototype.jstSelect_ = function(context, template, select) {
 JstProcessor.prototype.jstVars_ = function(context, template, values) {
   for (var i = 0, I = jsLength(values); i < I; i += 2) {
     var label = values[i];
-    var value = /** @type {Object?} */(context.jsexec(values[i+1], template));
+    var value = context.jsexec(values[i+1], template);
     context.setVariable(label, value);
   }
 };
@@ -685,7 +744,7 @@ JstProcessor.prototype.jstVars_ = function(context, template, values) {
 JstProcessor.prototype.jstValues_ = function(context, template, values) {
   for (var i = 0, I = jsLength(values); i < I; i += 2) {
     var label = values[i];
-    var value = /** @type {Object?} */(context.jsexec(values[i+1], template));
+    var value = context.jsexec(values[i+1], template);
 
     if (label.charAt(0) == CHAR_dollar) {
       // A jsvalues entry whose name starts with $ sets a local
@@ -832,7 +891,7 @@ function jstGetTemplate(name, opt_loadHtmlFn) {
  */
 function jstGetTemplateOrDie(name, opt_loadHtmlFn) {
   var x = jstGetTemplate(name, opt_loadHtmlFn);
-  assert(x != null);
+  check(x != null);
   return /** @type Element */(x);
 }
 

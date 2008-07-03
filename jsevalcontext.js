@@ -27,6 +27,15 @@
 var VAR_index = '$index';
 var VAR_this = '$this';
 var VAR_context = '$context';
+var VAR_top = '$top';
+
+
+/**
+ * The name of the global variable which holds the value to be returned if
+ * context evaluation results in an error. 
+ * Use JsEvalContext.setGlobal(GLOB_default, value) to set this.
+ */
+var GLOB_default = '$default';
 
 
 /**
@@ -50,9 +59,9 @@ var REGEXP_semicolon = /\s*;\s*/;
  * context is the object whose property the parent object is. Null for the
  * context of the root object.
  *
- * @constructor
+ * @see jsevalcontext.h.js
  */
-function JsEvalContext(opt_data, opt_parent) {
+JsEvalContext.prototype.constructor_ = function(opt_data, opt_parent) {
   var me = this;
 
   /**
@@ -87,7 +96,7 @@ function JsEvalContext(opt_data, opt_parent) {
    * @type Object
    */
   me.vars_[VAR_this] = opt_data;
-  
+
   /**
    * The entire context structure is exposed as a variable so it can be
    * passed to javascript invocations through jseval.
@@ -108,7 +117,14 @@ function JsEvalContext(opt_data, opt_parent) {
    * @type {Object|null}
    */
   me.data_ = getDefaultObject(opt_data, STRING_empty);
-}
+
+  if (!opt_parent) {
+    // If this is a top-level context, create a variable reference to the data
+    // to allow for  accessing top-level properties of the original context
+    // data from child contexts.
+    me.vars_[VAR_top] = me.data_;
+  }
+};
 
 
 /**
@@ -127,11 +143,18 @@ JsEvalContext.globals_ = {}
  * global variables in general apply also here. (Hence the name
  * "global", and not "global var".)
  * @param {string} name
- * @param {Object} value
+ * @param {Object|null} value
  */
 JsEvalContext.setGlobal = function(name, value) {
   JsEvalContext.globals_[name] = value;
 };
+
+
+/**
+ * Set the default value to be returned if context evaluation results in an 
+ * error. (This can occur if a non-existent value was requested). 
+ */
+JsEvalContext.setGlobal(GLOB_default, null);
 
 
 /**
@@ -196,7 +219,7 @@ JsEvalContext.prototype.jsexec = function(exprFunction, template) {
   } catch (e) {
     log('jsexec EXCEPTION: ' + e + ' at ' + template +
         ' with ' + exprFunction);
-    return null;
+    return JsEvalContext.globals_[GLOB_default];
   }
 };
 
@@ -254,7 +277,7 @@ JsEvalContext.prototype.getVariable = function(name) {
 /**
  * Evaluates a string expression within the scope of this context
  * and returns the result.
- * 
+ *
  * @param {string} expr A javascript expression
  * @param {Element} opt_template An optional node to serve as "this"
  *

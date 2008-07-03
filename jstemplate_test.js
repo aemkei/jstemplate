@@ -262,13 +262,13 @@ function testJstGetTemplateFromFunction() {
   }
   // Success
   element = jstGetTemplate('template',
-                           curryMethod(returnHtmlWithId, 'template'));
+                           partial(returnHtmlWithId, 'template'));
   assertTrue("Expected jstGetTemplate('template') to return a dom element",
              !!element);
 
   // Failure
   element = jstGetTemplate('asdf',
-                           curryMethod(returnHtmlWithId, 'zxcv'));
+                           partial(returnHtmlWithId, 'zxcv'));
   assertFalse("Expected jstGetTemplate('zxcv') to return null",
               !!element);
 }
@@ -324,4 +324,16 @@ function testJsVars() {
   assertEquals(1, context.getVariable('$baz'));
   assertTrue(context.getVariable('bar'));
   assertUndefined(context.getVariable('foobar'));
+}
+
+
+function testCacheReuse() {
+  var template = document.createElement('div');
+  document.body.appendChild(template);
+  template.innerHTML = 
+    '<div jsvars="foo:\'foo\';bar:true;$baz:1"></div>' +
+    '<span jsvars="foo:\'foo\';bar:true;$baz:1"></span>';
+  JstProcessor.prepareTemplate_(template);
+  assertEquals(template.firstChild.getAttribute(ATT_jstcache),
+               template.lastChild.getAttribute(ATT_jstcache));
 }
