@@ -48,6 +48,16 @@ var REGEXP_semicolon = /\s*;\s*/;
 
 
 /**
+ * See constructor_()
+ * @param {Object|null} opt_data
+ * @param {Object} opt_parent
+ * @constructor
+ */
+function JsEvalContext(opt_data, opt_parent) {
+  this.constructor_.apply(this, arguments);
+}
+
+/**
  * Context for processing a jstemplate. The context contains a context
  * object, whose properties can be referred to in jstemplate
  * expressions, and it holds the locally defined variables.
@@ -58,8 +68,6 @@ var REGEXP_semicolon = /\s*;\s*/;
  * variables are inherited. Normally the context object of the parent
  * context is the object whose property the parent object is. Null for the
  * context of the root object.
- *
- * @see jsevalcontext.h.js
  */
 JsEvalContext.prototype.constructor_ = function(opt_data, opt_parent) {
   var me = this;

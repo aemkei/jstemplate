@@ -20,12 +20,13 @@
 
 var MAPS_DEBUG = false;
 
-function log() {}
+function log(msg) {}
 
 // String literals defined globally and not to be inlined. (IE6 perf)
 /** @const */ var STRING_empty = '';
 
 /** @const */ var CSS_display = 'display';
+/** @const */ var CSS_position = 'position';
 
 // Constants for possible values of the typeof operator.
 var TYPE_boolean = 'boolean';
@@ -190,6 +191,17 @@ var DOM_NOTATION_NODE = 12;
 
 function domGetElementById(document, id) {
   return document.getElementById(id);
+}
+
+/**
+ * Creates a new node in the given document
+ *
+ * @param {Document} doc  Target document.
+ * @param {string} name  Name of new element (i.e. the tag name)..
+ * @return {Element}  Newly constructed element.
+ */
+function domCreateElement(doc, name) {
+  return doc.createElement(name);
 }
 
 /**
@@ -365,6 +377,16 @@ function displayNone(node) {
 
 
 /**
+ * Sets position style attribute to absolute.
+ *
+ * @param {Element} node  The dom element to manipulate.
+ */
+function positionAbsolute(node) {
+  node.style[CSS_position] = 'absolute';
+}
+
+
+/**
  * Inserts a new child before a given sibling.
  *
  * @param {Node} newChild  Node to insert.
@@ -406,6 +428,7 @@ function domRemoveNode(node) {
 function domRemoveChild(node, child) {
   return node.removeChild(child);
 }
+
 
 /**
  * Trim whitespace from begin and end of string.
