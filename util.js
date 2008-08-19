@@ -158,14 +158,17 @@ function arrayClear(array) {
 
 
 /**
- * Returns an event handler that calls the method on the given object
- * with the given arguments.
+ * Prebinds "this" within the given method to an object, but ignores all 
+ * arguments passed to the resulting function.
+ * I.e. var_args are all the arguments that method is invoked with when
+ * invoking the bound function.
  *
- * @param {Object|null} object Observer object.
- * @param {Function} method Observer method.
- * @return {Function} Resulting handler.
+ * @param {Object|null} object  The object that the method call targets.
+ * @param {Function} method  The target method.
+ * @return {Function}  Method with the target object bound to it and curried by
+ *                     the provided arguments.
  */
-function eventCallbackArgs(object, method, var_args) {
+function bindFully(object, method, var_args) {
   var args = arraySlice(arguments, 2);
   return function() {
     return method.apply(object, args);

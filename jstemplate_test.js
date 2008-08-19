@@ -231,10 +231,27 @@ function testScalarContext() {
 }
 
 function testJstLoadTemplate() {
+  var wrapperId = 'testJstLoadTemplateWrapper';
   var id = 'testJstLoadTemplate';
-  jstLoadTemplate_(document, '<div id="' + id + '">content</div>');
+  jstLoadTemplate_(document, '<div id="' + id + '">content</div>', wrapperId);
+  var wrapperElem = document.getElementById(wrapperId);
+  assertTrue('Expected wrapper element to be in document',
+             !!wrapperElem);
+  var newTemplate = document.getElementById(id);
   assertTrue('Expected newly loaded template to be in document',
-             !!document.getElementById(id));
+             !!newTemplate);
+  assertTrue('Expected wrapper to be grandparent of template',
+             newTemplate.parentNode.parentNode == wrapperElem);
+
+  // Make sure the next template loaded with the same wrapper id re-uses the
+  // wrapper element.
+  var id2 = 'testJstLoadTemplate2';
+  jstLoadTemplate_(document, '<div id="' + id2 + '">content</div>', wrapperId);
+  var newTemplate2 = document.getElementById(id2);
+  assertTrue('Expected newly loaded template to be in document',
+             !!newTemplate2);
+  assertTrue('Expected wrapper to be grandparent of template',
+             newTemplate2.parentNode.parentNode == wrapperElem);
 }
 
 function testJstGetTemplateFromDom() {

@@ -111,10 +111,10 @@ function jstProcess(context, template, opt_debugging) {
    */
   processor.document_ = ownerDocument(template);
 
-  processor.run_(eventCallbackArgs(processor, processor.jstProcessOuter_,
-                                   context, template));
+  processor.run_(bindFully(processor, processor.jstProcessOuter_,
+                           context, template));
   if (MAPS_DEBUG && opt_debugging) {
-    logHtml('jstProcess:' + '<br/>' + processor.getLogs().join('<br/>'));
+    log('jstProcess:' + '\n' + processor.getLogs().join('\n'));
   }
 }
 
@@ -615,7 +615,8 @@ JstProcessor.prototype.jstSelect_ = function(context, template, select) {
   // also matches input data with a length property, so this property
   // name should be avoided in input data.
   var multiple = isArray(value);
-  var multipleEmpty = (multiple && value.length == 0);
+  var count = multiple ? jsLength(value) : 1;
+  var multipleEmpty = (multiple && count == 0);
 
   if (multiple) {
     if (multipleEmpty) {
@@ -644,36 +645,37 @@ JstProcessor.prototype.jstSelect_ = function(context, template, select) {
       // essential, because 0 == "", presumably via type coercion to
       // boolean.
       if (instance === null || instance === STRING_empty ||
-          (instanceLast && instance < jsLength(value) - 1)) {
+          (instanceLast && instance < count - 1)) {
         // A queue of calls to push.
         var queue = me.createArray_();
 
         var instancesStart = instance || 0;
         var i, I, clone;
-        for (i = instancesStart, I = jsLength(value) - 1;
-             i < I; ++i) {
+        for (i = instancesStart, I = count - 1; i < I; ++i) {
           var node = domCloneNode(template);
           domInsertBefore(node, template);
 
           jstSetInstance(/** @type Element */(node), value, i);
-          clone = context.clone(value[i], i);
+          clone = context.clone(value[i], i, count);
+
           queue.push(me.jstProcessInner_, clone, node,
                      JsEvalContext.recycle, clone, null);
+                     
         }
         // Push the originally present template instance last to keep
         // the order aligned with the DOM order, because the newly
         // created template instances are inserted *before* the
         // original instance.
         jstSetInstance(template, value, i);
-        clone = context.clone(value[i], i);
+        clone = context.clone(value[i], i, count);
         queue.push(me.jstProcessInner_, clone, template,
                    JsEvalContext.recycle, clone, null);
         me.push_(queue);
-      } else if (instance < jsLength(value)) {
+      } else if (instance < count) {
         var v = value[instance];
 
         jstSetInstance(template, value, instance);
-        var clone = context.clone(v, instance);
+        var clone = context.clone(v, instance, count);
         var queue = me.createArray_();
         queue.push(me.jstProcessInner_, clone, template,
                    JsEvalContext.recycle, clone, null);
@@ -687,7 +689,7 @@ JstProcessor.prototype.jstSelect_ = function(context, template, select) {
       displayNone(template);
     } else {
       displayDefault(template);
-      var clone = context.clone(value, 0);
+      var clone = context.clone(value, 0, 1);
       var queue = me.createArray_();
       queue.push(me.jstProcessInner_, clone, template,
                  JsEvalContext.recycle, clone, null);
@@ -891,7 +893,7 @@ function jstGetTemplate(name, opt_loadHtmlFn) {
  */
 function jstGetTemplateOrDie(name, opt_loadHtmlFn) {
   var x = jstGetTemplate(name, opt_loadHtmlFn);
-  check(x != null);
+  check(x !== null);
   return /** @type Element */(x);
 }
 
@@ -929,8 +931,8 @@ function jstLoadTemplateIfNotPresent(doc, name, loadHtmlFn, opt_target) {
  * Loads the given HTML text into the given document, so that
  * jstGetTemplate can find it.
  *
- * We append it a div named jsts, which is hidden. If it doesn't
- * exist, it is created.
+ * We append it to the element identified by targetId, which is hidden.
+ * If it doesn't exist, it is created.
  *
  * @param {Document} doc The document to create the template in.
  *
@@ -945,7 +947,7 @@ function jstLoadTemplate_(doc, html, targetId) {
   var target;
   if (!existing_target) {
     target = domCreateElement(doc, STRING_div);
-    target.id = target;
+    target.id = targetId;
     displayNone(target);
     positionAbsolute(target);
     domAppendChild(doc.body, target);

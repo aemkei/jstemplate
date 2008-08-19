@@ -25,6 +25,7 @@
  * attributes.
  */
 var VAR_index = '$index';
+var VAR_count = '$count';
 var VAR_this = '$this';
 var VAR_context = '$context';
 var VAR_top = '$top';
@@ -243,12 +244,16 @@ JsEvalContext.prototype.jsexec = function(exprFunction, template) {
  *
  * @param {number} index Position of the new context when multiply
  * instantiated. (See implementation of jstSelect().)
+ * 
+ * @param {number} count The total number of contexts that were multiply
+ * instantiated. (See implementation of jstSelect().)
  *
  * @return {JsEvalContext}
  */
-JsEvalContext.prototype.clone = function(data, index) {
+JsEvalContext.prototype.clone = function(data, index, count) {
   var ret = JsEvalContext.create(data, this);
   ret.setVariable(VAR_index, index);
+  ret.setVariable(VAR_count, count);
   return ret;
 };
 
